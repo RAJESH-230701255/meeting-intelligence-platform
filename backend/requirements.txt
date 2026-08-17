@@ -1,0 +1,40 @@
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# Database
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+alembic==1.14.1
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+
+# Validation & Settings
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# File Upload & Processing
+python-multipart==0.0.20
+python-docx==1.1.2
+PyPDF2==3.0.1
+
+# Audio Processing
+pydub==0.25.1
+
+# AI Providers (optional - for real mode)
+openai==1.58.1
+anthropic==0.40.0
+
+# CORS
+# (included in fastapi)
+
+# Testing
+pytest==8.3.4
+httpx==0.28.1
+
+# Utilities
+python-dateutil==2.9.0
