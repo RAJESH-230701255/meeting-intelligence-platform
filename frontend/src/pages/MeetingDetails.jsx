@@ -29,6 +29,8 @@ export default function MeetingDetails() {
     try {
       const res = await api.post(`/api/meetings/${id}/analyze`);
       setAnalysis(res.data);
+      const meetingRes = await api.get(`/api/meetings/${id}`);
+      setMeeting(meetingRes.data);
       setTab('summary');
     } catch (err) { setError(err.response?.data?.detail || 'AI analysis failed.'); }
     finally { setAnalyzing(false); }
@@ -51,11 +53,14 @@ export default function MeetingDetails() {
           </p>
         </div>
         <div className="flex gap-sm">
-          {meeting.meeting_type === 'INTERNAL' && meeting.status === 'SCHEDULED' && user?.role !== 'EMPLOYEE' && (
+          {meeting.meeting_type === 'INTERNAL' && (meeting.status === 'SCHEDULED' || meeting.status === 'IN_PROGRESS') && user?.role !== 'EMPLOYEE' && (
             <button className="btn btn-primary" onClick={() => navigate(`/meetings/${id}/room`)}>🎙️ Join Meeting</button>
           )}
           {transcript && !analysis && user?.role !== 'EMPLOYEE' && (
             <button className="btn btn-primary" onClick={runAnalysis} disabled={analyzing}>{analyzing ? '🔄 Analyzing...' : '🤖 Run AI Analysis'}</button>
+          )}
+          {transcript && analysis && user?.role !== 'EMPLOYEE' && (
+            <button className="btn btn-secondary" onClick={runAnalysis} disabled={analyzing}>{analyzing ? '🔄 Re-analyzing...' : '🔄 Re-run Analysis'}</button>
           )}
           {analysis && analysis.action_items?.some(a => a.status === 'PENDING_REVIEW') && user?.role !== 'EMPLOYEE' && (
             <button className="btn btn-secondary" onClick={() => navigate(`/meetings/${id}/review`)}>📋 Review Action Items</button>

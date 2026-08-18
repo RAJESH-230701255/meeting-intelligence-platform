@@ -299,10 +299,17 @@ def start_meeting(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("ADMIN", "MANAGER")),
 ):
-    """Start a meeting — sets status to IN_PROGRESS."""
+    """Start a meeting — sets status to IN_PROGRESS.
+
+    Idempotent: if the meeting is already IN_PROGRESS the current state is
+    returned without overwriting the original start_time.
+    """
     meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
+
+    if meeting.status == "IN_PROGRESS":
+        return {"status": "started", "room_id": meeting.room_id}
 
     meeting.status = "IN_PROGRESS"
     meeting.start_time = datetime.now(timezone.utc)
@@ -400,11 +407,8 @@ async def upload_audio(
 
     log_action(db, current_user.id, "UPLOAD_AUDIO", "meeting", meeting_id)
 
-    # Clean up audio file after processing
-    try:
-        os.remove(audio_path)
-    except OSError:
-        pass
+    # Audio file is retained for potential re-processing or download (Phase 3).
+    # No cleanup is performed here.
 
     return {
         "status": "processed",

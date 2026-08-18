@@ -64,12 +64,12 @@ export default function Meetings() {
       const formData = new FormData();
       formData.append('file', uploadFile);
       if (uploadType === 'audio') {
-        await api.post(`/api/meetings/${meetingId}/audio`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await api.post(`/api/meetings/${meetingId}/process`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       } else {
         await api.post(`/api/meetings/${meetingId}/transcript/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        // Trigger AI analysis on existing transcript
+        await api.post(`/api/meetings/${meetingId}/process`);
       }
-      // Trigger AI analysis
-      await api.post(`/api/meetings/${meetingId}/analyze`);
       setShowUpload(false);
       setUploadFile(null);
       navigate(`/meetings/${meetingId}`);

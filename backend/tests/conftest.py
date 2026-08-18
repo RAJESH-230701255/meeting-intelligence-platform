@@ -68,3 +68,54 @@ def client(db_session, admin_user):
         yield c
 
     fastapi_app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def manager_user(db_session):
+    user = User(
+        name="Manager Test",
+        email="manager@test.com",
+        password_hash="fakehash",
+        role="MANAGER",
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture(scope="function")
+def employee_user(db_session):
+    user = User(
+        name="Employee Test",
+        email="employee@test.com",
+        password_hash="fakehash",
+        role="EMPLOYEE",
+        is_active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture(scope="function")
+def client_as(db_session):
+    """Factory fixture: returns a TestClient authenticated as the given user."""
+    def _make_client(user):
+        def override_get_db():
+            try:
+                yield db_session
+            finally:
+                pass
+
+        def override_get_current_user():
+            return user
+
+        fastapi_app.dependency_overrides[get_db] = override_get_db
+        fastapi_app.dependency_overrides[get_current_user] = override_get_current_user
+        return TestClient(fastapi_app)
+
+    yield _make_client
+    fastapi_app.dependency_overrides.clear()

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routes import auth, users, meetings, transcripts, analysis, tasks, dashboards, notifications
+from app.routes import auth, users, meetings, transcripts, analysis, tasks, dashboards, notifications, processing
 
 settings = get_settings()
 
@@ -44,6 +44,7 @@ app.include_router(analysis.router)
 app.include_router(tasks.router)
 app.include_router(dashboards.router)
 app.include_router(notifications.router)
+app.include_router(processing.router)
 
 
 @app.get("/api/health")

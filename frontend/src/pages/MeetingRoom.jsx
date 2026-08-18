@@ -12,14 +12,22 @@ export default function MeetingRoom() {
   const [micError, setMicError] = useState(null);
   const [ending, setEnding] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [processStep, setProcessStep] = useState(0);
+  const [processError, setProcessError] = useState(null);
 
   const mediaRecorderRef = useRef(null);
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
+  const stepTimerRef = useRef(null);
 
   useEffect(() => {
     api.get(`/api/meetings/${id}`).then(r => {
+      // Guard: redirect if meeting is already completed or cancelled
+      if (r.data.status === 'COMPLETED' || r.data.status === 'CANCELLED') {
+        navigate(`/meetings/${id}`);
+        return;
+      }
       setMeeting(r.data);
       startMeeting(r.data);
     }).catch(() => navigate('/meetings'));
@@ -27,7 +35,7 @@ export default function MeetingRoom() {
   }, [id]);
 
   const startMeeting = async (meetingData) => {
-    // Mark meeting as started
+    // Mark meeting as started (idempotent — safe to call if already IN_PROGRESS)
     try {
       await api.post(`/api/meetings/${id}/start`);
     } catch (e) { /* may already be started */ }
@@ -65,6 +73,36 @@ export default function MeetingRoom() {
     }
   }, []);
 
+  const processRecording = async () => {
+    // Start simulated step progress (req #10: sequential UI states, not WebSocket)
+    setProcessing(true);
+    setProcessStep(1); // Uploading audio
+    stepTimerRef.current = setInterval(() => {
+      setProcessStep(prev => (prev < 3 ? prev + 1 : prev));
+    }, 2500);
+
+    try {
+      const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+      const formData = new FormData();
+      formData.append('file', blob, `meeting_${id}.webm`);
+
+      // Single /process call (req #4)
+      await api.post(`/api/meetings/${id}/process`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      // Success
+      if (stepTimerRef.current) clearInterval(stepTimerRef.current);
+      setProcessStep(4); // Complete
+      setTimeout(() => navigate(`/meetings/${id}`), 1200);
+    } catch (err) {
+      // Error recovery (req #9)
+      if (stepTimerRef.current) clearInterval(stepTimerRef.current);
+      setProcessing(false);
+      setProcessError(err.response?.data?.detail || 'Processing failed. Please try again.');
+    }
+  };
+
   const endMeeting = async () => {
     setEnding(true);
 
@@ -83,27 +121,24 @@ export default function MeetingRoom() {
       await api.post(`/api/meetings/${id}/end`);
     } catch (e) { /* continue */ }
 
-    // Upload recording automatically
+    // Upload + process recording
     if (chunksRef.current.length > 0) {
-      setProcessing(true);
-      try {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append('file', blob, `meeting_${id}.webm`);
-
-        await api.post(`/api/meetings/${id}/audio`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-
-        // Trigger AI analysis
-        await api.post(`/api/meetings/${id}/analyze`);
-      } catch (err) {
-        console.error('Processing error:', err);
-      }
+      // Stop mic tracks before processing
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+      await processRecording();
+    } else {
+      cleanup();
+      navigate(`/meetings/${id}`);
     }
+  };
 
-    cleanup();
-    navigate(`/meetings/${id}`);
+  const retryProcessing = async () => {
+    setProcessError(null);
+    if (chunksRef.current.length > 0) {
+      await processRecording();
+    } else {
+      navigate(`/meetings/${id}`);
+    }
   };
 
   const retryMic = async () => {
@@ -113,6 +148,7 @@ export default function MeetingRoom() {
 
   const cleanup = () => {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (stepTimerRef.current) clearInterval(stepTimerRef.current);
     if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
   };
 
@@ -125,16 +161,62 @@ export default function MeetingRoom() {
 
   if (!meeting) return <div className="loading-spinner"><div className="spinner" /></div>;
 
-  if (processing) {
+  // Error state with Retry (req #9)
+  if (processError) {
     return (
       <div className="meeting-room" style={{alignItems:'center',justifyContent:'center'}}>
-        <div style={{textAlign:'center'}}>
-          <div className="spinner" style={{margin:'0 auto 1.5rem'}} />
-          <h2 style={{marginBottom:'0.5rem'}}>Processing Meeting</h2>
-          <p style={{color:'var(--text-secondary)',fontSize:'0.875rem'}}>
-            Transcribing audio and running AI analysis...<br/>
-            This may take a moment.
-          </p>
+        <div style={{textAlign:'center', maxWidth: '420px'}}>
+          <div style={{fontSize:'3rem',marginBottom:'1rem'}}>⚠️</div>
+          <h2 style={{marginBottom:'0.5rem', color:'var(--danger)'}}>Processing Failed</h2>
+          <p style={{color:'var(--text-secondary)',fontSize:'0.875rem',marginBottom:'1.5rem'}}>{processError}</p>
+          <div className="flex gap-sm" style={{justifyContent:'center'}}>
+            <button className="btn btn-primary" onClick={retryProcessing}>🔄 Retry</button>
+            <button className="btn btn-secondary" onClick={() => navigate(`/meetings/${id}`)}>View Meeting Details</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Processing state with step indicators (req #10)
+  if (processing) {
+    const steps = [
+      { label: 'Uploading audio', icon: '📤' },
+      { label: 'Transcribing speech', icon: '🎙️' },
+      { label: 'Running AI analysis', icon: '🤖' },
+      { label: 'Complete!', icon: '✅' },
+    ];
+    return (
+      <div className="meeting-room" style={{alignItems:'center',justifyContent:'center'}}>
+        <div style={{textAlign:'center', maxWidth: '400px'}}>
+          {processStep < 4 && <div className="spinner" style={{margin:'0 auto 1.5rem'}} />}
+          <h2 style={{marginBottom:'1.5rem'}}>Processing Meeting</h2>
+          <div style={{display:'flex',flexDirection:'column',gap:'0.75rem',textAlign:'left'}}>
+            {steps.map((step, i) => {
+              const stepNum = i + 1;
+              const isDone = processStep > stepNum;
+              const isCurrent = processStep === stepNum;
+              return (
+                <div key={i} style={{display:'flex',alignItems:'center',gap:'0.75rem'}}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.75rem', color: 'white',
+                    background: isDone ? 'var(--success)' : isCurrent ? 'var(--accent-primary)' : 'var(--bg-input)',
+                  }}>
+                    {isDone ? '✓' : step.icon}
+                  </div>
+                  <span style={{
+                    fontSize: '0.875rem',
+                    color: isDone ? 'var(--text-primary)' : isCurrent ? 'var(--accent-primary)' : 'var(--text-tertiary)',
+                    fontWeight: isCurrent ? 600 : 400,
+                  }}>
+                    {step.label}{isCurrent && '...'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
