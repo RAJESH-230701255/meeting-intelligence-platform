@@ -35,7 +35,7 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
 
     log_action(db, user.id, "REGISTER", "user", user.id)
 
-    token = create_access_token(data={"sub": user.id})
+    token = create_access_token(data={"sub": str(user.id)})
     return TokenResponse(
         access_token=token,
         user=UserBrief.model_validate(user),
@@ -60,7 +60,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 
     log_action(db, user.id, "LOGIN", "user", user.id)
 
-    token = create_access_token(data={"sub": user.id})
+    token = create_access_token(data={"sub": str(user.id)})
     return TokenResponse(
         access_token=token,
         user=UserBrief.model_validate(user),
