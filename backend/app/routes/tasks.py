@@ -55,7 +55,7 @@ def list_tasks(
     if current_user.role == "EMPLOYEE":
         query = query.filter(Task.assigned_to == current_user.id)
         # Employees don't see PENDING_REVIEW or REJECTED
-        query = query.filter(Task.status.notin_(["PENDING_REVIEW", "REJECTED"]))
+        query = query.filter(Task.status.notin_(["REJECTED"]))
 
     if status_filter:
         query = query.filter(Task.status == status_filter.upper())

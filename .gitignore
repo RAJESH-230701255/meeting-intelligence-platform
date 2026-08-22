@@ -38,3 +38,7 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Backend uploaded meeting media
+backend/uploads/*
+!backend/uploads/.gitkeep

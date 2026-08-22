@@ -195,16 +195,9 @@ async def process_meeting(
         Task.status == "PENDING_REVIEW",
     ).delete()
 
+    from app.services.user_service import resolve_assignee
     for item in analysis.action_items:
-        assigned_to = None
-        if item.assignee_name and item.assignee_name.lower() != "unresolved":
-            user = (
-                db.query(User)
-                .filter(User.name.ilike(f"%{item.assignee_name}%"))
-                .first()
-            )
-            if user:
-                assigned_to = user.id
+        assigned_to = resolve_assignee(db, item.assignee_name)
 
         parsed_deadline = None
         if item.deadline:
@@ -229,6 +222,10 @@ async def process_meeting(
             source="AI_EXTRACTED",
         )
         db.add(task)
+        db.flush()
+
+        if assigned_to:
+            notify_task_assigned(db, assigned_to, task.id, task.title)
 
     # ------------------------------------------------------------------
     # 8. Commit & log

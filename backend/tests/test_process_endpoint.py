@@ -60,8 +60,22 @@ def test_process_with_audio_upload(client, db_session, admin_user, monkeypatch):
 
 
 def test_process_with_existing_transcript(client, db_session, admin_user, monkeypatch):
-    """Process with existing transcript (no audio upload) — verify analysis runs."""
+    """Process with existing transcript (no audio upload) — verify analysis runs and notifications are created."""
+    from app.models.user import User
+    from app.models.notification import Notification
+    
     monkeypatch.setenv("AI_PROVIDER", "mock")
+
+    # Create a user named Rajesh so the mock AI assignment works
+    rajesh = User(
+        name="Rajesh Kumar",
+        email="rajesh@test.com",
+        password_hash="fakehash",
+        role="EMPLOYEE",
+        is_active=True,
+    )
+    db_session.add(rajesh)
+    db_session.commit()
 
     meeting = Meeting(
         title="Existing Transcript Test",
@@ -85,6 +99,12 @@ def test_process_with_existing_transcript(client, db_session, admin_user, monkey
     data = res.json()
     assert data["summary"] != ""
     assert len(data["action_items"]) > 0
+
+    # Verify that Rajesh received a notification
+    notifications = db_session.query(Notification).filter_by(user_id=rajesh.id).all()
+    assert len(notifications) > 0
+    assert "new task" in notifications[0].message
+    assert notifications[0].type == "TASK_ASSIGNED"
 
 
 def test_process_no_transcript_no_audio_returns_400(client, db_session, admin_user):
