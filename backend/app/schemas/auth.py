@@ -32,5 +32,14 @@ class UserBrief(BaseModel):
         from_attributes = True
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=6, max_length=128)
+
+
 # Update forward ref
 TokenResponse.model_rebuild()
