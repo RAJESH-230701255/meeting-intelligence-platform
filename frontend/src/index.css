@@ -1171,3 +1171,8 @@ tr:hover td {
 .mb-md { margin-bottom: var(--space-md); }
 .mb-lg { margin-bottom: var(--space-lg); }
 .w-full { width: 100%; }
+
+select option {
+  color: #000000;
+  background-color: #ffffff;
+}

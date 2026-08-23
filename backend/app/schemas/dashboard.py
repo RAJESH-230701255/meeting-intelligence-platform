@@ -43,3 +43,9 @@ class AdminDashboard(BaseModel):
     recent_activity: list[dict] = []
     meetings_by_type: dict = {}
     tasks_by_status: dict = {}
+
+    overdue_tasks: int = 0
+    pending_reviews: int = 0
+    user_growth_trend: list[dict] = []
+    system_activity_trend: list[dict] = []
+    ai_vs_manual_tasks: dict = {}

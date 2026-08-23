@@ -226,6 +226,61 @@ def admin_dashboard(
         .all()
     )
 
+    # Overdue and Pending Reviews
+    today = date.today()
+    overdue_tasks = db.query(Task).filter(Task.deadline < today, Task.status.not_in(["COMPLETED", "REJECTED"])).count()
+    pending_reviews = db.query(Task).filter(Task.status == "PENDING_REVIEW").count()
+
+    # AI vs Manual
+    ai_tasks = db.query(Task).filter(Task.source == "AI_EXTRACTED").count()
+    manual_tasks = db.query(Task).filter(Task.source == "MANUAL").count()
+    ai_vs_manual_tasks = {"AI_EXTRACTED": ai_tasks, "MANUAL": manual_tasks}
+
+    # Trends (last 30 days)
+    thirty_days_ago = today - timedelta(days=29)
+
+    # User growth
+    recent_users = db.query(User).filter(User.created_at >= thirty_days_ago).all()
+    user_counts: dict[date, int] = {}
+    for u in recent_users:
+        if u.created_at:
+            d = u.created_at.date() if hasattr(u.created_at, 'date') else u.created_at
+            if thirty_days_ago <= d <= today:
+                user_counts[d] = user_counts.get(d, 0) + 1
+
+    user_growth_trend = []
+    for i in range(30):
+        d = thirty_days_ago + timedelta(days=i)
+        user_growth_trend.append({"date": d.isoformat(), "count": user_counts.get(d, 0)})
+
+    # System Activity (Meetings created & Tasks completed)
+    recent_meetings = db.query(Meeting).filter(Meeting.created_at >= thirty_days_ago).all()
+    recent_completed_tasks = db.query(Task).filter(Task.status == "COMPLETED", Task.completed_at >= thirty_days_ago).all()
+
+    meeting_counts: dict[date, int] = {}
+    task_counts: dict[date, int] = {}
+
+    for m in recent_meetings:
+        if m.created_at:
+            d = m.created_at.date() if hasattr(m.created_at, 'date') else m.created_at
+            if thirty_days_ago <= d <= today:
+                meeting_counts[d] = meeting_counts.get(d, 0) + 1
+
+    for t in recent_completed_tasks:
+        if t.completed_at:
+            d = t.completed_at.date() if hasattr(t.completed_at, 'date') else t.completed_at
+            if thirty_days_ago <= d <= today:
+                task_counts[d] = task_counts.get(d, 0) + 1
+
+    system_activity_trend = []
+    for i in range(30):
+        d = thirty_days_ago + timedelta(days=i)
+        system_activity_trend.append({
+            "date": d.isoformat(),
+            "meetings_created": meeting_counts.get(d, 0),
+            "tasks_completed": task_counts.get(d, 0)
+        })
+
     return AdminDashboard(
         total_users=total_users,
         users_by_role=role_counts,
@@ -245,4 +300,9 @@ def admin_dashboard(
         ],
         meetings_by_type=meetings_by_type,
         tasks_by_status=tasks_by_status,
+        overdue_tasks=overdue_tasks,
+        pending_reviews=pending_reviews,
+        user_growth_trend=user_growth_trend,
+        system_activity_trend=system_activity_trend,
+        ai_vs_manual_tasks=ai_vs_manual_tasks,
     )
