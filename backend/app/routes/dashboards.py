@@ -141,6 +141,35 @@ def manager_dashboard(
     # Recent meetings
     recent = sorted(all_meetings, key=lambda m: m.created_at, reverse=True)[:5]
 
+    # --- Completion trend (last 30 days) ---
+    thirty_days_ago = today - timedelta(days=29)  # inclusive today = 30 days
+    # Build a dict of date -> count for completed tasks in manager scope
+    completion_counts: dict[date, int] = {}
+    for t in completed:
+        if t.completed_at:
+            d = t.completed_at.date() if hasattr(t.completed_at, 'date') else t.completed_at
+            if thirty_days_ago <= d <= today:
+                completion_counts[d] = completion_counts.get(d, 0) + 1
+
+    # Build the continuous 30-day list (zero-fill missing dates)
+    completion_trend = []
+    for i in range(30):
+        d = thirty_days_ago + timedelta(days=i)
+        completion_trend.append({"date": d.isoformat(), "count": completion_counts.get(d, 0)})
+
+    # --- Meeting activity trend (last 30 days) ---
+    meeting_counts: dict[date, int] = {}
+    for m in all_meetings:
+        if m.created_at:
+            d = m.created_at.date() if hasattr(m.created_at, 'date') else m.created_at
+            if thirty_days_ago <= d <= today:
+                meeting_counts[d] = meeting_counts.get(d, 0) + 1
+
+    meeting_activity = []
+    for i in range(30):
+        d = thirty_days_ago + timedelta(days=i)
+        meeting_activity.append({"date": d.isoformat(), "count": meeting_counts.get(d, 0)})
+
     return ManagerDashboard(
         total_meetings=len(all_meetings),
         meetings_this_week=len(meetings_this_week),
@@ -157,7 +186,8 @@ def manager_dashboard(
              "status": m.status, "type": m.meeting_type}
             for m in recent
         ],
-        completion_trend=[],
+        completion_trend=completion_trend,
+        meeting_activity=meeting_activity,
     )
 
 

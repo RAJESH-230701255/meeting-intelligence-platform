@@ -30,6 +30,7 @@ class ManagerDashboard(BaseModel):
     team_workload: list[dict] = []
     recent_meetings: list[dict] = []
     completion_trend: list[dict] = []
+    meeting_activity: list[dict] = []
 
 
 class AdminDashboard(BaseModel):

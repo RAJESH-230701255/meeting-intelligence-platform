@@ -460,6 +460,20 @@ a:hover {
   font-weight: 500;
 }
 
+/* --- Charts Grid --- */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+@media (max-width: 768px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* --- Forms --- */
 .form-group {
   margin-bottom: var(--space-lg);
