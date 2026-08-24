@@ -64,17 +64,15 @@ def employee_dashboard(
         .all()
     )
 
-    all_my_tasks = db.query(Task).filter(Task.assigned_to == current_user.id).all()
-
     tasks_by_status = {}
     tasks_by_priority = {}
-    for t in all_my_tasks:
+    for t in my_tasks:
         tasks_by_status[t.status] = tasks_by_status.get(t.status, 0) + 1
         tasks_by_priority[t.priority] = tasks_by_priority.get(t.priority, 0) + 1
 
     thirty_days_ago = today - timedelta(days=29)
     completion_counts: dict[date, int] = {}
-    for t in all_my_tasks:
+    for t in my_tasks:
         if t.status == "COMPLETED" and t.completed_at:
             d = t.completed_at.date() if hasattr(t.completed_at, 'date') else t.completed_at
             if thirty_days_ago <= d <= today:

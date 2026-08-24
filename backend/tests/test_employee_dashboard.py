@@ -64,8 +64,16 @@ def test_employee_dashboard_analytics_scoping(db_session, client_as, employee_us
         status="COMPLETED",
         completed_at=datetime.combine(five_days_ago, datetime.min.time(), tzinfo=timezone.utc),
     )
+    # 4. PENDING_REVIEW task for current employee
+    t4 = Task(
+        title="Pending Review Task",
+        assigned_to=employee_user.id,
+        created_by=manager_user.id,
+        priority="HIGH",
+        status="PENDING_REVIEW",
+    )
 
-    db_session.add_all([t1, t2, t3])
+    db_session.add_all([t1, t2, t3, t4])
     db_session.commit()
 
     client = client_as(employee_user)
