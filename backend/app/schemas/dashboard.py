@@ -15,6 +15,9 @@ class EmployeeDashboard(BaseModel):
     recent_tasks: list[dict] = []
     recent_meetings: list[dict] = []
     notifications: list[dict] = []
+    tasks_by_status: dict = {}
+    tasks_by_priority: dict = {}
+    completion_trend: list[dict] = []
 
 
 class ManagerDashboard(BaseModel):

@@ -64,6 +64,27 @@ def employee_dashboard(
         .all()
     )
 
+    all_my_tasks = db.query(Task).filter(Task.assigned_to == current_user.id).all()
+
+    tasks_by_status = {}
+    tasks_by_priority = {}
+    for t in all_my_tasks:
+        tasks_by_status[t.status] = tasks_by_status.get(t.status, 0) + 1
+        tasks_by_priority[t.priority] = tasks_by_priority.get(t.priority, 0) + 1
+
+    thirty_days_ago = today - timedelta(days=29)
+    completion_counts: dict[date, int] = {}
+    for t in all_my_tasks:
+        if t.status == "COMPLETED" and t.completed_at:
+            d = t.completed_at.date() if hasattr(t.completed_at, 'date') else t.completed_at
+            if thirty_days_ago <= d <= today:
+                completion_counts[d] = completion_counts.get(d, 0) + 1
+
+    completion_trend = []
+    for i in range(30):
+        d = thirty_days_ago + timedelta(days=i)
+        completion_trend.append({"date": d.isoformat(), "count": completion_counts.get(d, 0)})
+
     return EmployeeDashboard(
         total_tasks=len(my_tasks),
         pending_tasks=len(pending),
@@ -86,6 +107,9 @@ def employee_dashboard(
             {"id": n.id, "message": n.message, "type": n.type, "created_at": str(n.created_at)}
             for n in notifications
         ],
+        tasks_by_status=tasks_by_status,
+        tasks_by_priority=tasks_by_priority,
+        completion_trend=completion_trend,
     )
 
 

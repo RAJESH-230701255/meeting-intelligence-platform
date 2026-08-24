@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend, LineElement, PointElement, Filler } from 'chart.js';
+import { Pie, Bar, Line } from 'react-chartjs-2';
 
+ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend, LineElement, PointElement, Filler);
 export default function EmployeeDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -25,6 +28,62 @@ export default function EmployeeDashboard() {
   const priorityBadge = (priority) => {
     const map = { LOW: 'badge-low', MEDIUM: 'badge-medium', HIGH: 'badge-high', URGENT: 'badge-urgent' };
     return map[priority] || 'badge-medium';
+  };
+
+  const statusColors = { PENDING: '#f59e0b', IN_PROGRESS: '#3b82f6', COMPLETED: '#10b981', PENDING_REVIEW: '#a855f7', REJECTED: '#ef4444', CONFIRMED: '#6366f1' };
+  const priorityColors = { LOW: '#10b981', MEDIUM: '#f59e0b', HIGH: '#f97316', URGENT: '#ef4444' };
+
+  const statusChart = {
+    labels: Object.keys(data.tasks_by_status || {}),
+    datasets: [{ data: Object.values(data.tasks_by_status || {}), backgroundColor: Object.keys(data.tasks_by_status || {}).map(k => statusColors[k] || '#6366f1'), borderWidth: 0 }],
+  };
+
+  const priorityChart = {
+    labels: Object.keys(data.tasks_by_priority || {}),
+    datasets: [{ label: 'Tasks', data: Object.values(data.tasks_by_priority || {}), backgroundColor: Object.keys(data.tasks_by_priority || {}).map(k => priorityColors[k] || '#6366f1'), borderWidth: 0, borderRadius: 6 }],
+  };
+
+  const chartOpts = { responsive: true, plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter' } } } }, scales: { x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { ticks: { color: '#64748b' }, grid: { color: 'rgba(255,255,255,0.05)' } } } };
+  const pieOpts = { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { family: 'Inter' }, padding: 16 } } } };
+
+  const trendLabels = (data.completion_trend || []).map(d => {
+    const dt = new Date(d.date);
+    return `${dt.getMonth() + 1}/${dt.getDate()}`;
+  });
+  const trendValues = (data.completion_trend || []).map(d => d.count);
+
+  const completionTrendChart = {
+    labels: trendLabels,
+    datasets: [{
+      label: 'Tasks Completed',
+      data: trendValues,
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      pointBackgroundColor: '#10b981',
+      borderWidth: 2,
+    }],
+  };
+
+  const lineChartOpts = {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#94a3b8', font: { family: 'Inter' } } },
+    },
+    scales: {
+      x: {
+        ticks: { color: '#64748b', maxRotation: 45, autoSkip: true, maxTicksLimit: 10 },
+        grid: { color: 'rgba(255,255,255,0.05)' },
+      },
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#64748b', stepSize: 1 },
+        grid: { color: 'rgba(255,255,255,0.05)' },
+      },
+    },
   };
 
   return (
@@ -61,6 +120,29 @@ export default function EmployeeDashboard() {
           <div className="stat-card-icon" style={{background: 'rgba(239,68,68,0.15)', color: '#ef4444'}}>⚠️</div>
           <div className="stat-card-value">{data.overdue_tasks}</div>
           <div className="stat-card-label">Overdue</div>
+        </div>
+      </div>
+
+      <div className="charts-grid">
+        <div className="card">
+          <div className="card-header"><h2 className="card-title">Tasks by Status</h2></div>
+          {Object.keys(data.tasks_by_status || {}).length > 0 ? <Pie data={statusChart} options={pieOpts} /> : <div className="empty-state"><p>No data</p></div>}
+        </div>
+        <div className="card">
+          <div className="card-header"><h2 className="card-title">Tasks by Priority</h2></div>
+          {Object.keys(data.tasks_by_priority || {}).length > 0 ? <Bar data={priorityChart} options={chartOpts} /> : <div className="empty-state"><p>No data</p></div>}
+        </div>
+      </div>
+
+      <div className="charts-grid">
+        <div className="card" style={{gridColumn: '1 / -1'}}>
+          <div className="card-header">
+            <h2 className="card-title">Task Completion Trend</h2>
+            <span style={{fontSize:'0.75rem',color:'var(--text-tertiary)'}}>Last 30 days</span>
+          </div>
+          <div style={{padding:'1rem'}}>
+            <Line data={completionTrendChart} options={lineChartOpts} />
+          </div>
         </div>
       </div>
 
