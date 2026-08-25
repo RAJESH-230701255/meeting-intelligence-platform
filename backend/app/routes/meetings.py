@@ -142,7 +142,6 @@ def list_meetings(
         participant_meeting_ids = (
             db.query(MeetingParticipant.meeting_id)
             .filter(MeetingParticipant.user_id == current_user.id)
-            .subquery()
         )
         query = query.filter(Meeting.id.in_(participant_meeting_ids))
     elif current_user.role == "MANAGER":
@@ -150,7 +149,6 @@ def list_meetings(
         participant_meeting_ids = (
             db.query(MeetingParticipant.meeting_id)
             .filter(MeetingParticipant.user_id == current_user.id)
-            .subquery()
         )
         query = query.filter(
             (Meeting.host_id == current_user.id) | (Meeting.id.in_(participant_meeting_ids))
