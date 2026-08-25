@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 
 from app.core.dependencies import get_current_user, get_db, require_role
 from app.models.task import Task
@@ -46,6 +47,7 @@ def list_tasks(
     assigned_to: int = None,
     meeting_id: int = None,
     search: str = None,
+    date: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -69,8 +71,21 @@ def list_tasks(
     if meeting_id:
         query = query.filter(Task.meeting_id == meeting_id)
 
+    if date:
+        try:
+            parsed_date = datetime.strptime(date, "%Y-%m-%d").date()
+            query = query.filter(Task.deadline == parsed_date)
+        except ValueError:
+            pass
+
     if search:
-        query = query.filter(Task.title.ilike(f"%{search}%"))
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                Task.title.ilike(search_term),
+                Task.description.ilike(search_term)
+            )
+        )
 
     tasks = query.order_by(Task.created_at.desc()).all()
     return TaskListResponse(

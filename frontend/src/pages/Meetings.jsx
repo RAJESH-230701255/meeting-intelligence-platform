@@ -30,15 +30,22 @@ export default function Meetings() {
   const [uploadType, setUploadType] = useState('transcript');
   const [processing, setProcessing] = useState(false);
   const [search, setSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [personFilter, setPersonFilter] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     loadMeetings();
     if (user?.role !== 'EMPLOYEE') api.get('/api/users').then(r => setUsers(r.data.users)).catch(() => {});
-  }, []);
+  }, [dateFilter, personFilter]);
 
   const loadMeetings = () => {
-    api.get('/api/meetings', { params: search ? { search } : {} })
+    const params = {};
+    if (search) params.search = search;
+    if (dateFilter) params.date = dateFilter;
+    if (personFilter) params.person_id = personFilter;
+
+    api.get('/api/meetings', { params })
       .then(r => setMeetings(r.data.meetings))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -100,9 +107,16 @@ export default function Meetings() {
         )}
       </div>
 
-      <div className="mb-lg">
+      <div className="flex gap-md mb-lg" style={{flexWrap:'wrap'}}>
         <input className="form-input" placeholder="Search meetings..." value={search}
-          onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadMeetings()} style={{maxWidth:'400px'}} />
+          onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadMeetings()} style={{maxWidth:'300px'}} />
+        <input type="date" className="form-input" value={dateFilter} onChange={e => setDateFilter(e.target.value)} style={{maxWidth:'180px'}} />
+        {user?.role !== 'EMPLOYEE' && users.length > 0 && (
+          <select className="form-select" value={personFilter} onChange={e => setPersonFilter(e.target.value)} style={{maxWidth:'180px'}}>
+            <option value="">All People</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        )}
       </div>
 
       {meetings.length === 0 ? (

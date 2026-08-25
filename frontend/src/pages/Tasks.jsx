@@ -11,14 +11,16 @@ export default function Tasks() {
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
-  useEffect(() => { loadTasks(); }, [statusFilter, priorityFilter]);
+  useEffect(() => { loadTasks(); }, [statusFilter, priorityFilter, dateFilter]);
 
   const loadTasks = () => {
     const params = {};
     if (statusFilter) params.status_filter = statusFilter;
     if (priorityFilter) params.priority = priorityFilter;
     if (search) params.search = search;
+    if (dateFilter) params.date = dateFilter;
     api.get('/api/tasks', { params }).then(r => setTasks(r.data.tasks)).catch(console.error).finally(() => setLoading(false));
   };
 
@@ -36,6 +38,7 @@ export default function Tasks() {
       <div className="flex gap-md mb-lg" style={{flexWrap:'wrap'}}>
         <input className="form-input" placeholder="Search tasks..." value={search} style={{maxWidth:'250px'}}
           onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadTasks()} />
+        <input type="date" className="form-input" value={dateFilter} onChange={e => setDateFilter(e.target.value)} style={{maxWidth:'180px'}} />
         <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{maxWidth:'180px'}}>
           <option value="">All Statuses</option>
           <option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option>

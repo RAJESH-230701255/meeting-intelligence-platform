@@ -2,10 +2,11 @@
 
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, String, cast
 
 from app.core.config import get_settings
 from app.core.dependencies import get_current_user, get_db, require_role
@@ -128,6 +129,8 @@ def list_meetings(
     status_filter: str = None,
     meeting_type: str = None,
     search: str = None,
+    person_id: int = None,
+    date: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -160,8 +163,48 @@ def list_meetings(
     if meeting_type:
         query = query.filter(Meeting.meeting_type == meeting_type.upper())
 
+    if person_id:
+        query = query.filter(Meeting.participants.any(MeetingParticipant.user_id == person_id))
+
+    if date:
+        try:
+            parsed_date = datetime.strptime(date, "%Y-%m-%d").date()
+            query = query.filter(Meeting.meeting_date == parsed_date)
+        except ValueError:
+            pass
+
     if search:
-        query = query.filter(Meeting.title.ilike(f"%{search}%"))
+        search_term = f"%{search}%"
+        has_transcript = db.query(Transcript.id).filter(
+            Transcript.meeting_id == Meeting.id,
+            Transcript.content.ilike(search_term)
+        ).exists()
+
+        has_summary = db.query(MeetingSummary.id).filter(
+            MeetingSummary.meeting_id == Meeting.id,
+            or_(
+                MeetingSummary.summary.ilike(search_term),
+                cast(MeetingSummary.key_points, String).ilike(search_term)
+            )
+        ).exists()
+
+        has_decision = db.query(Decision.id).filter(
+            Decision.meeting_id == Meeting.id,
+            or_(
+                Decision.decision_text.ilike(search_term),
+                Decision.decision_context.ilike(search_term)
+            )
+        ).exists()
+
+        query = query.filter(
+            or_(
+                Meeting.title.ilike(search_term),
+                Meeting.description.ilike(search_term),
+                has_transcript,
+                has_summary,
+                has_decision
+            )
+        )
 
     meetings = query.order_by(Meeting.created_at.desc()).all()
     return MeetingListResponse(
